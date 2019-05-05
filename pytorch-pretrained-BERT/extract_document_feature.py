@@ -55,12 +55,11 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, unique_id, doc_orig_start, doc_stride, sentence, tokens, orig_to_tok_map, input_ids, input_mask, input_type_ids):
+    def __init__(self, unique_id, doc_orig_start, doc_stride, tokens, orig_to_tok_map, input_ids, input_mask, input_type_ids):
         self.unique_id = unique_id
         self.doc_orig_start = doc_orig_start
         self.doc_stride = doc_stride
         self.orig_to_tok_map = orig_to_tok_map
-        self.sentence = sentence
         self.tokens = tokens
         self.input_ids = input_ids
         self.input_mask = input_mask
@@ -69,8 +68,6 @@ class InputFeatures(object):
 
 def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
     """Loads a data file into a list of `InputFeature`s."""
-    # print("Length: {}" .format(len(example.text_a.split())))
-    # print("Sentence: {}".format(example.text_a))
     features = []
     # The -2 accounts for [CLS], [SEP]
     max_tokens_for_doc = seq_length-2
@@ -81,8 +78,6 @@ def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
         for sub_token in sub_tokens:
             tok_to_orig_index.append(i)
             all_doc_tokens.append(sub_token)
-    # print(all_doc_tokens)
-    # print(tok_to_orig_index)
     _DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
         "DocSpan", ["start", "length", "stride"])
     doc_spans = []
@@ -101,7 +96,6 @@ def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
 
         # find the whole token index that in this doc stride
         current_stride = doc_stride if length > doc_stride else length-start_offset-1
-        # print(current_stride)
         stride_bound = tok_to_orig_index[start_offset + current_stride]
         for i in range(current_stride, 0, -1):
             if tok_to_orig_index[start_offset + i] == stride_bound:
@@ -113,8 +107,6 @@ def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
             doc_spans.append(_DocSpan(start=start_offset, length=length, stride=0))
         else:
             doc_spans.append(_DocSpan(start=start_offset, length=length, stride=current_stride))
-        # print("start:{}, length:{}".format(start_offset, length))
-        # print("doc span: {}".format(all_doc_tokens[start_offset:start_offset+length]))
         if start_offset + length == len(all_doc_tokens):
             break
         start_offset += length-current_stride
@@ -135,7 +127,6 @@ def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
         orig_to_tok_map.append(len(tokens))
         tokens.append("[SEP]")
         input_type_ids.append(0)
-        # print("doc span tokens: {}".format(tokens))
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
@@ -167,7 +158,6 @@ def convert_example_to_features(example, doc_stride, seq_length, tokenizer):
         features.append(
             InputFeatures(
                 unique_id=example.unique_id,
-                sentence=example.text_a,
                 doc_orig_start=doc_orig_start,
                 doc_stride=doc_span.stride,
                 tokens=tokens,
@@ -250,6 +240,7 @@ def main():
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=True)
     model = BertModel.from_pretrained(args.bert_model)
     model.to(device)
+    model.eval()
 
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
@@ -265,10 +256,6 @@ def main():
             features = convert_example_to_features(
                 example=example, doc_stride=args.doc_stride, seq_length=args.max_seq_length, tokenizer=tokenizer)
 
-            unique_id_to_feature = {}
-            for feature in features:
-                unique_id_to_feature[feature.unique_id] = feature
-
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
             all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
             all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
@@ -280,7 +267,6 @@ def main():
                 eval_sampler = DistributedSampler(eval_data)
             eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=len(features))
 
-            model.eval()
             embeddings = np.zeros((len(layer_indexes), len(example.text_a.split()), 768), dtype=float)
             sentence_to_index[example.text_a] = str(example_id)
             for step, batch in enumerate(eval_dataloader):
@@ -294,13 +280,9 @@ def main():
                     feature = features[example_index.item()]
                     orig_to_tok_map = feature.orig_to_tok_map
                     doc_orig_start = feature.doc_orig_start
-                    # print("tokens:{}, sentence:{}".format(feature.tokens, feature.sentence))
                     # SUM sub_token embedding to word embedding(word_emb)
                     for i in range(len(orig_to_tok_map)-1):
-                        # print("word:{}".format(feature.sentence.split()[doc_orig_start+i]))
-                        # print("token index:{}".format(i + doc_orig_start))
                         for j in range(orig_to_tok_map[i], orig_to_tok_map[i+1]):
-                            # print("sub token: {}".format(feature.tokens[j]))
                             for (k, layer_index) in enumerate(layer_indexes):
                                 layer_output = all_encoder_layers[int(layer_index)].detach().cpu().numpy()
                                 layer_output = layer_output[b]
@@ -310,7 +292,6 @@ def main():
                 out = embeddings[-1]
             else:
                 out = embeddings
-            # print("out shape:{}".format(out.shape))
             fout.create_dataset(
                 str(example_id),
                 out.shape, dtype='float32',
