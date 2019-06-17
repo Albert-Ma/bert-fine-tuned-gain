@@ -20,7 +20,8 @@ from contexteval.data.fields import SequenceArrayField
 
 logger = logging.getLogger(__name__)
 
-FIELDS = ["id", "form", "lemma", "pos", "head", "deprel", "top", "pred", "frame"]
+# FIELDS = ["id", "form", "lemma", "pos", "head", "deprel", "top", "pred", "frame"]
+FIELDS = ["id", "form", "lemma", "pos", "top", "pred"]
 
 
 def parse_sentence(sentence: str):

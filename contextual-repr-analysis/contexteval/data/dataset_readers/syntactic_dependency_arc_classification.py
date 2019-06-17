@@ -28,10 +28,15 @@ def lazy_parse(text: str, fields: Tuple = DEFAULT_FIELDS):
             arc_indices = []
             # Strings with the relation for each pair
             arc_labels = []
+            # print(sentence)
             for idx, annotation in enumerate(annotations):
                 head = annotation["head"]
+                # print(idx, head)
                 if head == 0:
                     # Skip the root
+                    continue
+                if not head:
+                    # Skip the None Type
                     continue
                 # UD marks the head with 1-indexed numbering, so we subtract
                 # one to get the index of the parent.

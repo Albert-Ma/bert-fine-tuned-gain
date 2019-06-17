@@ -13,6 +13,7 @@ from contexteval.data.dataset_readers.conll2000_chunking import (
     Conll2000ChunkingDatasetReader)
 from contexteval.data.dataset_readers.conllu_pos import ConllUPOSDatasetReader
 from contexteval.data.dataset_readers.conllx_pos import ConllXPOSDatasetReader
+from contexteval.data.dataset_readers.ontonotes_pos import OntonotesPOSDatasetReader
 from contexteval.data.dataset_readers.constituency_ancestor_prediction import (
     ConstituencyAncestorPredictionDatasetReader)
 from contexteval.data.dataset_readers.coreference_arc_prediction import (
@@ -41,6 +42,7 @@ __all__ = ["AdpositionSupersenseTaggingDatasetReader",
            "Conll2000ChunkingDatasetReader",
            "ConllUPOSDatasetReader",
            "ConllXPOSDatasetReader",
+           "OntonotesPOSDatasetReader",
            "ConstituencyAncestorPredictionDatasetReader",
            "CoreferenceArcPredictionDatasetReader",
            "DependencyArcPredictionDatasetReader",
